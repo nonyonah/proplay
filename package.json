@@ -1,12 +1,14 @@
 {
-  "name": "my-v0-project",
+  "name": "pro-play",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "build": "next build",
     "dev": "next dev",
-    "lint": "next lint",
-    "start": "next start"
+    "dev:api": "cd api && nodemon index.js",
+    "start": "next start",
+    "start:api": "cd api && node index.js",
+    "lint": "next lint"
   },
   "dependencies": {
     "@farcaster/miniapp-sdk": "^0.1.7",

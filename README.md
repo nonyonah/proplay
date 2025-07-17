@@ -7,7 +7,119 @@ Pro Play is a comprehensive esports Farcaster mini app that brings the excitemen
 ## 🎮 Features
 
 ### Core Functionality
+- **Live Scores**: Real-time match updates from PandaScore API
+- **Match Predictions**: Stake on matches using Base Sepolia
 - **Team Following**: Follow your favorite esports teams across multiple games
+- **Notifications**: Get alerts for upcoming matches via Farcaster
+- **Predictions**: Make predictions and compete in prize pools
+- **Share**: Share matches and predictions as Farcaster casts
+
+## 🛠 Tech Stack
+
+### Frontend
+- Next.js 14
+- shadcn/ui components
+- Farcaster Mini App SDK
+- Ethers.js for blockchain interactions
+
+### Backend
+- Express.js API server
+- PandaScore for esports data
+- Base Sepolia for smart contracts
+- Supabase for user data
+- Neynar SDK for Farcaster integration
+
+## 🚀 Getting Started
+
+1. Clone the repository:
+```bash
+git clone https://github.com/nonyonah/proplay.git
+cd proplay
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Set up environment variables:
+Create a `.env` file in the root:
+```env
+NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
+```
+
+Create a `.env` file in the `/api` directory:
+```env
+PORT=3001
+PANDASCORE_TOKEN=your_pandascore_token
+NEYNAR_API_KEY=your_neynar_api_key
+BASE_RPC_URL=https://sepolia.base.org
+PREDICTION_POOL_ADDRESS=your_contract_address
+BASE_USDC_ADDRESS=your_base_usdc_address
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_KEY=your_supabase_anon_key
+```
+
+4. Set up the database:
+- Create a new Supabase project
+- Run the SQL script in `api/db/init.sql`
+
+5. Deploy the smart contract:
+- Deploy `api/contracts/PredictionPool.sol` to Base Sepolia
+- Update PREDICTION_POOL_ADDRESS in `.env`
+
+6. Start the development servers:
+
+In one terminal:
+```bash
+npm run dev
+```
+
+In another terminal:
+```bash
+npm run dev:api
+```
+
+The app will be available at:
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:3001
+
+## 📁 Project Structure
+
+```
+├── app/                  # Next.js app directory
+├── components/           # React components
+├── lib/                  # Shared utilities
+├── api/                  # Backend server
+│   ├── routes/          # API routes
+│   ├── contracts/       # Smart contracts
+│   ├── config/          # Server config
+│   └── utils/           # Helper functions
+└── public/              # Static assets
+```
+
+## 📚 Documentation
+
+For detailed API documentation and backend setup, see [API Documentation](api/README.md).
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Open a pull request
+
+## 📜 License
+
+ISC License
+
+## 🙏 Acknowledgments
+
+- PandaScore for esports data
+- Base for the L2 infrastructure
+- Farcaster for the frame platform
+- shadcn/ui for the component library
 - **Tournament Tracking**: Stay updated on major tournaments and competitions
 - **Player Profiles**: Follow individual players and get personalized updates
 - **Match Predictions**: Place predictions on upcoming matches

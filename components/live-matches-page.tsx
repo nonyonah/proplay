@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { ArrowLeft, Trophy, Star, Home, Wallet, Play, Share2, Clock } from "lucide-react"
+import { API_ENDPOINTS, fetchApi } from "@/lib/api"
 
 interface LiveMatchesPageProps {
   onBack: () => void

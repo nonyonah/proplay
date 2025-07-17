@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Gamepad2, LogOut, Heart, Share2, Trophy, Wallet, Home, Star, Play } from "lucide-react"
+import { API_ENDPOINTS, fetchApi } from "@/lib/api"
 
 interface HomePageProps {
   onLogout: () => void
