@@ -6,11 +6,10 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Gamepad2, LogOut, Heart, Share2, Trophy, Wallet, Home, Star, Play } from "lucide-react"
+import { Gamepad2, Heart, Share2, Trophy, Wallet, Home, Star, Play } from "lucide-react"
 import { API_ENDPOINTS, fetchApi } from "@/lib/api"
 
 interface HomePageProps {
-  onLogout: () => void
   onNavigateToFollowed: () => void
   onNavigateToPredictions: () => void
   onNavigateToLive: () => void
@@ -61,7 +60,6 @@ const mockMatches = [
 ]
 
 export function HomePage({
-  onLogout,
   onNavigateToFollowed,
   onNavigateToPredictions,
   onNavigateToLive,
@@ -106,9 +104,6 @@ export function HomePage({
             <Avatar className="w-8 h-8">
               <AvatarFallback className="text-xs bg-purple-100 text-purple-600">JD</AvatarFallback>
             </Avatar>
-            <Button variant="ghost" size="sm" onClick={onLogout} className="hover:bg-gray-100">
-              <LogOut className="w-4 h-4" />
-            </Button>
           </div>
         </div>
       </header>

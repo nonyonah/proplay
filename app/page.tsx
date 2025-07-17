@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { LoginPage } from "@/components/login-page"
+import { useState, useEffect } from "react"
+import { SplashScreen } from "@/components/splash-screen"
 import { OnboardingFlow } from "@/components/onboarding-flow"
 import { HomePage } from "@/components/home-page"
 import { FollowedMatchesPage } from "@/components/followed-matches-page"
@@ -12,10 +12,9 @@ import { WalletModal } from "@/components/wallet-modal"
 import { ThemeProvider } from "@/components/theme-provider"
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<"login" | "onboarding" | "home" | "followed" | "predictions" | "live">(
-    "login",
+  const [currentPage, setCurrentPage] = useState<"splash" | "onboarding" | "home" | "followed" | "predictions" | "live">(
+    "splash"
   )
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [onboardingComplete, setOnboardingComplete] = useState(false)
   const [shareModalOpen, setShareModalOpen] = useState(false)
   const [walletModalOpen, setWalletModalOpen] = useState(false)
@@ -27,10 +26,13 @@ export default function App() {
     favoritePlayer: "",
   })
 
-  const handleLogin = () => {
-    setIsAuthenticated(true)
-    setCurrentPage("onboarding")
-  }
+  // Auto-transition from splash to onboarding after frame connection
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCurrentPage("onboarding")
+    }, 3000) // Show splash screen for 3 seconds
+    return () => clearTimeout(timer)
+  }, [])
 
   const handleOnboardingComplete = (preferences: any) => {
     setUserPreferences(preferences)
@@ -41,14 +43,6 @@ export default function App() {
   const handleSkipOnboarding = () => {
     setOnboardingComplete(true)
     setCurrentPage("home")
-  }
-
-  const handleLogout = () => {
-    setIsAuthenticated(false)
-    setOnboardingComplete(false)
-    setCurrentPage("login")
-    setFollowedMatches([])
-    setUserPreferences({ games: [], favoriteTeam: "", favoritePlayer: "" })
   }
 
   const handleFollowMatch = (matchId: string) => {
@@ -63,7 +57,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <div className="min-h-screen bg-background text-foreground">
-        {currentPage === "login" && <LoginPage onLogin={handleLogin} />}
+        {currentPage === "splash" && <SplashScreen />}
 
         {currentPage === "onboarding" && (
           <OnboardingFlow onComplete={handleOnboardingComplete} onSkip={handleSkipOnboarding} />
@@ -71,7 +65,6 @@ export default function App() {
 
         {currentPage === "home" && (
           <HomePage
-            onLogout={handleLogout}
             onNavigateToFollowed={() => setCurrentPage("followed")}
             onNavigateToPredictions={() => setCurrentPage("predictions")}
             onNavigateToLive={() => setCurrentPage("live")}
