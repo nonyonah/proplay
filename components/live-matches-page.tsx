@@ -224,7 +224,8 @@ export function LiveMatchesPage({
                 </div>
               </CardContent>
             </Card>
-            ))}
+            ))
+            )}
           </div>
         )}
 

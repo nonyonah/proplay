@@ -50,7 +50,7 @@ const mockPredictions = [
   },
 ]
 
-export const PredictionsPage = React.forwardRef<HTMLDivElement, PredictionsPageProps>(({ onNavigateToHome, onOpenWallet, onShareMatch }, ref) => {
+export function PredictionsPage({ onNavigateToHome, onOpenWallet, onShareMatch }: PredictionsPageProps) {
   const [predictions, setPredictions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -292,7 +292,7 @@ export const PredictionsPage = React.forwardRef<HTMLDivElement, PredictionsPageP
             </Card>
           ))}
         </div>
-        )}
+      )}
       </div>
 
       {/* Prediction Modal */}
@@ -445,4 +445,5 @@ export const PredictionsPage = React.forwardRef<HTMLDivElement, PredictionsPageP
         </div>
       </nav>
     </div>
-})
+  )
+}
