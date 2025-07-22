@@ -36,7 +36,7 @@ export function LiveMatchesPage({
     
     Promise.all([
       fetchApi<any[]>(API_ENDPOINTS.fixtures).then(data => data.filter(match => match.status === 'live')),
-      fetchApi<any[]>(API_ENDPOINTS.updates || `${API_ENDPOINTS.fixtures}/updates`)
+      fetchApi<any[]>(API_ENDPOINTS.updates)
     ])
       .then(([matchesData, updatesData]) => {
         setLiveMatches(matchesData)
@@ -99,7 +99,7 @@ export function LiveMatchesPage({
                 setError(null)
                 Promise.all([
                   fetchApi<any[]>(API_ENDPOINTS.fixtures).then(data => data.filter(match => match.status === 'live')),
-                  fetchApi<any[]>(API_ENDPOINTS.updates || `${API_ENDPOINTS.fixtures}/updates`)
+                  fetchApi<any[]>(API_ENDPOINTS.updates)
                 ])
                   .then(([matchesData, updatesData]) => {
                     setLiveMatches(matchesData)

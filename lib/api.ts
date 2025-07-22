@@ -10,6 +10,7 @@ export const API_ENDPOINTS = {
   preferences: '/api/preferences',
   wallet: '/api/wallet',
   cast: '/api/cast',
+  updates: '/api/updates',
 };
 
 // Helper function to construct API URLs
