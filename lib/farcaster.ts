@@ -16,8 +16,9 @@ export async function getFarcasterFid(): Promise<string | null> {
       return null
     }
     
-    // Extract FID from token
-    const tokenParts = token.split('.')
+    // Ensure token is a string before splitting
+    const tokenString = String(token)
+    const tokenParts = tokenString.split('.')
     if (tokenParts.length !== 3) {
       return null
     }
