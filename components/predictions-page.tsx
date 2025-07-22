@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { getFarcasterFid } from "@/lib/farcaster"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -8,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, Trophy, Star, Home, Wallet, Clock, Users } from "lucide-react"
 import { API_ENDPOINTS, fetchApi } from "@/lib/api"
+import React from "react"
 
 interface PredictionsPageProps {
   onNavigateToHome: () => void
@@ -48,12 +50,42 @@ const mockPredictions = [
   },
 ]
 
-export function PredictionsPage({ onNavigateToHome, onOpenWallet, onShareMatch }: PredictionsPageProps) {
+export const PredictionsPage = React.forwardRef<HTMLDivElement, PredictionsPageProps>(({ onNavigateToHome, onOpenWallet, onShareMatch }, ref) => {
+  const [predictions, setPredictions] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [predictionModalOpen, setPredictionModalOpen] = useState(false)
   const [selectedPrediction, setSelectedPrediction] = useState<any>(null)
   const [stakeAmount, setStakeAmount] = useState("")
   const [selectedAsset, setSelectedAsset] = useState("ETH")
   const [selectedTeam, setSelectedTeam] = useState<string>("")
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [walletAddress, setWalletAddress] = useState<string | null>(null)
+
+  // Fetch predictions data
+  useEffect(() => {
+    setLoading(true)
+    setError(null)
+    fetchApi<any[]>(API_ENDPOINTS.fixtures)
+      .then((data) => {
+        // Filter matches that are eligible for predictions
+        const eligibleMatches = data.filter(match => {
+          // Add any filtering logic here (e.g., matches that haven't started yet)
+          return true
+        })
+        setPredictions(eligibleMatches)
+      })
+      .catch((err) => setError(err.message || 'Failed to load predictions'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  // Fetch wallet address
+  useEffect(() => {
+    fetchApi<{address: string}>(API_ENDPOINTS.wallet)
+      .then((data) => setWalletAddress(data.address))
+      .catch((err) => console.error('Failed to load wallet address:', err))
+  }, [])
 
   const handlePredict = (prediction: any) => {
     setSelectedPrediction(prediction)
@@ -61,12 +93,58 @@ export function PredictionsPage({ onNavigateToHome, onOpenWallet, onShareMatch }
     setPredictionModalOpen(true)
   }
 
-  const handleConfirmStake = () => {
-    // Here you would integrate with wallet/blockchain
-    console.log("Staking:", stakeAmount, selectedAsset, "on", selectedTeam, "for match", selectedPrediction)
-    setPredictionModalOpen(false)
-    setStakeAmount("")
-    setSelectedTeam("")
+  const handleConfirmStake = async () => {
+    if (!selectedTeam || !stakeAmount || !selectedPrediction || !walletAddress) return
+    
+    setSubmitting(true)
+    setSubmitError(null)
+    
+    try {
+      // Get Farcaster FID from utility function
+      const fid = await getFarcasterFid()
+      
+      if (!fid) {
+        throw new Error('User not authenticated')
+      }
+      
+      // Make prediction via API
+      const response = await fetch(API_ENDPOINTS.predictions, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          matchId: selectedPrediction.id,
+          predictedWinner: selectedTeam,
+          amount: stakeAmount,
+          fid,
+          walletAddress: walletAddress,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to make prediction')
+      }
+
+      // Close modal and reset form
+      setPredictionModalOpen(false)
+      setStakeAmount("")
+      setSelectedTeam("")
+      
+      // Refresh predictions data
+      fetchApi<any[]>(API_ENDPOINTS.fixtures)
+        .then((data) => {
+          const eligibleMatches = data.filter(match => true)
+          setPredictions(eligibleMatches)
+        })
+        .catch((err) => console.error('Failed to refresh predictions:', err))
+      
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -93,9 +171,53 @@ export function PredictionsPage({ onNavigateToHome, onOpenWallet, onShareMatch }
       </header>
 
       <div className="p-4 space-y-6">
+        {/* Loading and Error States */}
+        {loading && (
+          <div className="text-center py-8">
+            <div className="animate-spin w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading predictions...</p>
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+            <p className="text-red-600">{error}</p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="mt-2" 
+              onClick={() => {
+                setLoading(true)
+                setError(null)
+                fetchApi<any[]>(API_ENDPOINTS.fixtures)
+                  .then((data) => {
+                    const eligibleMatches = data.filter(match => true)
+                    setPredictions(eligibleMatches)
+                  })
+                  .catch((err) => setError(err.message || 'Failed to load predictions'))
+                  .finally(() => setLoading(false))
+              }}
+            >
+              Try Again
+            </Button>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && !error && predictions.length === 0 && (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+              <Trophy className="w-8 h-8 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-1">No Predictions Available</h3>
+            <p className="text-gray-600 mb-4">Check back later for upcoming matches</p>
+          </div>
+        )}
+
         {/* Predictions List */}
-        <div className="space-y-4">
-          {mockPredictions.map((prediction) => (
+        {!loading && !error && predictions.length > 0 && (
+          <div className="space-y-4">
+            {predictions.map((prediction) => (
             <Card
               key={prediction.id}
               className="hover:scale-[1.01] transition-all duration-200 shadow-sm border border-gray-200 bg-white"
@@ -150,7 +272,7 @@ export function PredictionsPage({ onNavigateToHome, onOpenWallet, onShareMatch }
                     Top Stakers
                   </div>
                   <div className="space-y-1">
-                    {prediction.topStakers.slice(0, 3).map((staker, index) => (
+                    {prediction.topStakers.slice(0, 3).map((staker: any, index: number) => (
                       <div key={index} className="flex items-center justify-between text-sm">
                         <span className="text-purple-600">{staker.username}</span>
                         <span className="font-medium text-gray-900">{staker.amount}</span>
@@ -267,21 +389,36 @@ export function PredictionsPage({ onNavigateToHome, onOpenWallet, onShareMatch }
                 )}
               </div>
 
+              {/* Error Message */}
+              {submitError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-red-600 text-sm">{submitError}</p>
+                </div>
+              )}
+
               {/* Actions */}
               <div className="flex gap-3 pt-2">
                 <Button
                   variant="outline"
                   onClick={() => setPredictionModalOpen(false)}
+                  disabled={submitting}
                   className="flex-1 border-gray-200 bg-white hover:bg-gray-50"
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={handleConfirmStake}
-                  disabled={!stakeAmount || Number.parseFloat(stakeAmount) <= 0 || !selectedTeam}
+                  disabled={!stakeAmount || Number.parseFloat(stakeAmount) <= 0 || !selectedTeam || submitting}
                   className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
                 >
-                  Confirm Stake
+                  {submitting ? (
+                    <>
+                      <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                      Confirming...
+                    </>
+                  ) : (
+                    "Confirm Stake"
+                  )}
                 </Button>
               </div>
             </CardContent>
@@ -307,5 +444,5 @@ export function PredictionsPage({ onNavigateToHome, onOpenWallet, onShareMatch }
         </div>
       </nav>
     </div>
-  )
-}
+  );
+});
