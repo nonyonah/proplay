@@ -11,15 +11,6 @@ interface WalletModalProps {
   onClose: () => void
 }
 
-const mockWalletData = {
-  address: "0x1234...5678",
-  assets: [
-    { symbol: "ETH", amount: "0.5", value: "$1,250.00" },
-    { symbol: "USDC", amount: "10.0", value: "$10.00" },
-    { symbol: "WETH", amount: "0.25", value: "$625.00" },
-  ],
-}
-
 export function WalletModal({ onClose }: WalletModalProps) {
   const [walletData, setWalletData] = useState<any>(null)
   const [loading, setLoading] = useState(true)

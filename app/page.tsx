@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { sdk } from "@farcaster/miniapp-sdk"
+import { getFarcasterFid } from "@/lib/farcaster"
 import { SplashScreen } from "@/components/splash-screen"
 import { OnboardingFlow } from "@/components/onboarding-flow"
 import { HomePage } from "@/components/home-page"
@@ -10,6 +12,7 @@ import { LiveMatchesPage } from "@/components/live-matches-page"
 import { ShareCastModal } from "@/components/share-cast-modal"
 import { WalletModal } from "@/components/wallet-modal"
 import { ThemeProvider } from "@/components/theme-provider"
+import { API_ENDPOINTS } from "@/lib/api"
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<"splash" | "onboarding" | "home" | "followed" | "predictions" | "live">(
@@ -25,14 +28,75 @@ export default function App() {
     favoriteTeam: "",
     favoritePlayer: "",
   })
+  const [fid, setFid] = useState<string | null>(null)
 
-  // Auto-transition from splash to onboarding after frame connection
+  // Initialize Farcaster MiniApp SDK and transition from splash to onboarding
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setCurrentPage("onboarding")
-    }, 3000) // Show splash screen for 3 seconds
-    return () => clearTimeout(timer)
+    const initializeFarcaster = async () => {
+      try {
+        // Tell the Farcaster client we're ready to display content
+        await sdk.actions.ready()
+        
+        // Get user authentication information using utility function
+        const farcasterFid = await getFarcasterFid()
+        if (farcasterFid) {
+          setFid(farcasterFid)
+        }
+        
+        // Transition to onboarding after initialization
+        setCurrentPage("onboarding")
+      } catch (error) {
+        console.error("Error initializing Farcaster SDK:", error)
+        // Fallback to timer if SDK initialization fails
+        setTimeout(() => setCurrentPage("onboarding"), 3000)
+      }
+    }
+    
+    initializeFarcaster()
   }, [])
+
+  // Fetch user preferences and followed matches when FID is available
+  useEffect(() => {
+    // Only fetch data if user is authenticated
+    if (!fid) return;
+    
+    // Fetch user preferences
+    fetch(`${API_ENDPOINTS.preferences}?fid=${fid}`)
+      .then(response => {
+        if (!response.ok) throw new Error('Failed to fetch preferences')
+        return response.json()
+      })
+      .then(data => {
+        if (data && data.genres) {
+          setUserPreferences({
+            games: data.genres || [],
+            favoriteTeam: data.favorite_team || '',
+            favoritePlayer: data.favorite_player || '',
+          })
+          
+          // If user has preferences, mark onboarding as complete
+          if (data.genres && data.genres.length > 0) {
+            setOnboardingComplete(true)
+          }
+        }
+      })
+      .catch(err => console.error('Error fetching preferences:', err))
+    
+    // Fetch followed matches
+    fetch(`${API_ENDPOINTS.follow}?fid=${fid}`)
+      .then(response => {
+        if (!response.ok) throw new Error('Failed to fetch followed matches')
+        return response.json()
+      })
+      .then(data => {
+        if (data && Array.isArray(data)) {
+          // Extract match IDs from the response
+          const matchIds = data.map((match: any) => match.match_id)
+          setFollowedMatches(matchIds)
+        }
+      })
+      .catch(err => console.error('Error fetching followed matches:', err))  
+  }, [fid]) // Re-run when FID changes
 
   const handleOnboardingComplete = (preferences: any) => {
     setUserPreferences(preferences)
@@ -45,8 +109,42 @@ export default function App() {
     setCurrentPage("home")
   }
 
-  const handleFollowMatch = (matchId: string) => {
-    setFollowedMatches((prev) => (prev.includes(matchId) ? prev.filter((id) => id !== matchId) : [...prev, matchId]))
+  const handleFollowMatch = async (matchId: string) => {
+    // If already followed, we'll unfollow (this is handled in the FollowedMatchesPage component)
+    if (followedMatches.includes(matchId)) {
+      setFollowedMatches((prev) => prev.filter((id) => id !== matchId))
+      return
+    }
+    
+    // Check if user is authenticated
+    if (!fid) {
+      console.error('User not authenticated')
+      return
+    }
+    
+    try {
+      // Call the API to follow the match
+      const response = await fetch(API_ENDPOINTS.follow, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          matchId,
+          fid, // Use the authenticated FID
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to follow match')
+      }
+
+      // Update local state
+      setFollowedMatches((prev) => [...prev, matchId])
+    } catch (err) {
+      console.error('Error following match:', err)
+      // We could show an error toast here
+    }
   }
 
   const handleShareMatch = (match: any) => {

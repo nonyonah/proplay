@@ -20,45 +20,6 @@ interface HomePageProps {
   userPreferences: any
 }
 
-const mockMatches = [
-  {
-    id: "1",
-    team1: "T1",
-    team2: "Bilibili Gaming",
-    game: "LoL",
-    tournament: "EWC 2025",
-    time: "July 16, 6 PM AST",
-    status: "upcoming",
-  },
-  {
-    id: "2",
-    team1: "FaZe Clan",
-    team2: "Natus Vincere",
-    game: "CS2",
-    tournament: "IEM Cologne",
-    time: "July 16, 8 PM AST",
-    status: "upcoming",
-  },
-  {
-    id: "3",
-    team1: "Sentinels",
-    team2: "LOUD",
-    game: "Valorant",
-    tournament: "VCT Masters",
-    time: "July 17, 2 PM AST",
-    status: "upcoming",
-  },
-  {
-    id: "4",
-    team1: "G2 Esports",
-    team2: "Fnatic",
-    game: "LoL",
-    tournament: "LEC Summer",
-    time: "July 17, 4 PM AST",
-    status: "upcoming",
-  },
-]
-
 export function HomePage({
   onNavigateToFollowed,
   onNavigateToPredictions,
@@ -69,12 +30,25 @@ export function HomePage({
   followedMatches,
   userPreferences,
 }: HomePageProps) {
+  const [matches, setMatches] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [gameFilter, setGameFilter] = useState("all")
   const [dateFilter, setDateFilter] = useState("all")
   const [expandedMatch, setExpandedMatch] = useState<string | null>(null)
 
-  const filteredMatches = mockMatches.filter((match) => {
+  useEffect(() => {
+    setLoading(true)
+    setError(null)
+    fetchApi<any[]>(API_ENDPOINTS.fixtures)
+      .then((data) => setMatches(data))
+      .catch((err) => setError(err.message || 'Failed to load matches'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const filteredMatches = matches.filter((match) => {
     if (gameFilter !== "all" && match.game !== gameFilter) return false
+    // Optionally, add date filtering logic here
     return true
   })
 
@@ -109,8 +83,37 @@ export function HomePage({
       </header>
 
       <div className="p-4 space-y-6">
+        {/* Loading and Error States */}
+        {loading && (
+          <div className="text-center py-8">
+            <div className="animate-spin w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading matches...</p>
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+            <p className="text-red-600">{error}</p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="mt-2" 
+              onClick={() => {
+                setLoading(true)
+                setError(null)
+                fetchApi<any[]>(API_ENDPOINTS.fixtures)
+                  .then((data) => setMatches(data))
+                  .catch((err) => setError(err.message || 'Failed to load matches'))
+                  .finally(() => setLoading(false))
+              }}
+            >
+              Try Again
+            </Button>
+          </div>
+        )}
+
         {/* User Preferences Summary */}
-        {userPreferences.games.length > 0 && (
+        {!loading && !error && userPreferences.games.length > 0 && (
           <Card className="bg-white border border-gray-200 shadow-sm">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-2">
@@ -167,7 +170,13 @@ export function HomePage({
 
         {/* Match List */}
         <div className="space-y-4">
-          {filteredMatches.map((match) => (
+          {loading && (
+            <div className="text-center text-gray-500 py-8">Loading matches...</div>
+          )}
+          {error && (
+            <div className="text-center text-red-500 py-8">{error}</div>
+          )}
+          {!loading && !error && filteredMatches.map((match) => (
             <Card
               key={match.id}
               className="hover:scale-[1.02] transition-all duration-200 shadow-sm border border-gray-200 bg-white cursor-pointer"

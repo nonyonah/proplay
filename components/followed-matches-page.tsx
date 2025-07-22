@@ -234,4 +234,4 @@ export const FollowedMatchesPage = React.forwardRef<HTMLDivElement, FollowedMatc
       </div>
     </div>
   );
-};
+});

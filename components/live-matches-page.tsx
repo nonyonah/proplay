@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { ArrowLeft, Trophy, Star, Home, Wallet, Play, Share2, Clock } from "lucide-react"
+import { ArrowLeft, Wallet, Trophy, Play, Share2, Clock, Home, Star } from "lucide-react"
 import { API_ENDPOINTS, fetchApi } from "@/lib/api"
 
 interface LiveMatchesPageProps {
@@ -16,40 +16,6 @@ interface LiveMatchesPageProps {
   onShareMatch: (match: any) => void
 }
 
-const mockLiveMatches = [
-  {
-    id: "1",
-    team1: "T1",
-    team2: "Bilibili Gaming",
-    score1: 1,
-    score2: 0,
-    game: "LoL",
-    tournament: "EWC 2025",
-    status: "Map 1, 15th min",
-    progress: 60,
-    twitchUrl: "https://twitch.tv/riotgames",
-  },
-  {
-    id: "2",
-    team1: "FaZe Clan",
-    team2: "Natus Vincere",
-    score1: 13,
-    score2: 8,
-    game: "CS2",
-    tournament: "IEM Cologne",
-    status: "Dust2, Round 22",
-    progress: 85,
-    twitchUrl: "https://twitch.tv/esl_csgo",
-  },
-]
-
-const mockUpdates = [
-  { id: 1, text: "T1 takes Baron! #LoL", time: "2m ago", game: "LoL" },
-  { id: 2, text: "FaZe wins pistol round! #CS2", time: "5m ago", game: "CS2" },
-  { id: 3, text: "Incredible 1v3 clutch by s1mple! #CS2", time: "8m ago", game: "CS2" },
-  { id: 4, text: "First blood to Bilibili Gaming! #LoL", time: "12m ago", game: "LoL" },
-]
-
 export function LiveMatchesPage({
   onBack,
   onNavigateToHome,
@@ -58,6 +24,27 @@ export function LiveMatchesPage({
   onShareMatch,
 }: LiveMatchesPageProps) {
   const [expandedMatch, setExpandedMatch] = useState<string | null>(null)
+  const [liveMatches, setLiveMatches] = useState<any[]>([])
+  const [updates, setUpdates] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Fetch live matches and updates
+  useEffect(() => {
+    setLoading(true)
+    setError(null)
+    
+    Promise.all([
+      fetchApi<any[]>(API_ENDPOINTS.fixtures).then(data => data.filter(match => match.status === 'live')),
+      fetchApi<any[]>(API_ENDPOINTS.updates || `${API_ENDPOINTS.fixtures}/updates`)
+    ])
+      .then(([matchesData, updatesData]) => {
+        setLiveMatches(matchesData)
+        setUpdates(updatesData)
+      })
+      .catch((err) => setError(err.message || 'Failed to load live matches'))
+      .finally(() => setLoading(false))
+  }, [])
 
   const handleWatchLive = (twitchUrl: string) => {
     window.open(twitchUrl, "_blank")
@@ -91,9 +78,56 @@ export function LiveMatchesPage({
       </header>
 
       <div className="p-4 space-y-6">
+        {/* Loading State */}
+        {loading && (
+          <div className="text-center py-8">
+            <div className="animate-spin w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading live matches...</p>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+            <p className="text-red-600">{error}</p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="mt-2" 
+              onClick={() => {
+                setLoading(true)
+                setError(null)
+                Promise.all([
+                  fetchApi<any[]>(API_ENDPOINTS.fixtures).then(data => data.filter(match => match.status === 'live')),
+                  fetchApi<any[]>(API_ENDPOINTS.updates || `${API_ENDPOINTS.fixtures}/updates`)
+                ])
+                  .then(([matchesData, updatesData]) => {
+                    setLiveMatches(matchesData)
+                    setUpdates(updatesData)
+                  })
+                  .catch((err) => setError(err.message || 'Failed to load live matches'))
+                  .finally(() => setLoading(false))
+              }}
+            >
+              Try Again
+            </Button>
+          </div>
+        )}
+
         {/* Live Matches */}
-        <div className="space-y-4">
-          {mockLiveMatches.map((match) => (
+        {!loading && !error && (
+          <div className="space-y-4">
+            {liveMatches.length === 0 ? (
+              <Card className="border border-gray-200 bg-white shadow-sm">
+                <CardContent className="p-8 text-center">
+                  <p className="text-gray-600">No live matches at the moment</p>
+                  <Button variant="outline" onClick={onBack} className="mt-4 border-gray-200 bg-white hover:bg-gray-50">
+                    Browse Upcoming Matches
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              liveMatches.map((match) => (
             <Card
               key={match.id}
               className="hover:scale-[1.01] transition-all duration-200 shadow-sm border border-gray-200 bg-white"
@@ -190,14 +224,16 @@ export function LiveMatchesPage({
                 </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* Update Feed */}
-        <div className="space-y-4">
-          <h3 className="font-semibold text-lg text-gray-900">Live Updates</h3>
-          <div className="space-y-3">
-            {mockUpdates.map((update) => (
+        {!loading && !error && updates.length > 0 && (
+          <div className="space-y-4">
+            <h3 className="font-semibold text-lg text-gray-900">Live Updates</h3>
+            <div className="space-y-3">
+              {updates.map((update) => (
               <Card key={update.id} className="hover:bg-gray-50 transition-colors border border-gray-200 bg-white">
                 <CardContent className="p-3">
                   <div className="flex items-start justify-between">
@@ -217,8 +253,9 @@ export function LiveMatchesPage({
                 </CardContent>
               </Card>
             ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Bottom Navigation */}

@@ -2,14 +2,28 @@ const express = require('express');
 const router = express.Router();
 const { ethers } = require('ethers');
 const { provider, neynar } = require('../config');
-const PredictionPoolABI = require('../contracts/PredictionPool.json'); // We'll create this later
 
 const PREDICTION_POOL_ADDRESS = process.env.PREDICTION_POOL_ADDRESS;
-const contract = new ethers.Contract(PREDICTION_POOL_ADDRESS, PredictionPoolABI, provider);
+let contract = null;
+let PredictionPoolABI = null;
+
+// Only initialize contract if all required environment variables are available
+if (PREDICTION_POOL_ADDRESS && provider) {
+  try {
+    PredictionPoolABI = require('../contracts/PredictionPool.json');
+    contract = new ethers.Contract(PREDICTION_POOL_ADDRESS, PredictionPoolABI, provider);
+  } catch (error) {
+    console.warn('Contract initialization failed, predictions will be disabled:', error.message);
+  }
+}
 
 // POST /api/predictions - Make a prediction
 router.post('/', async (req, res) => {
   try {
+    if (!contract) {
+      return res.status(503).json({ error: 'Predictions service not available' });
+    }
+
     const { matchId, predictedWinner, amount, fid, walletAddress } = req.body;
 
     if (!matchId || !predictedWinner || !amount || !fid || !walletAddress) {
@@ -54,6 +68,10 @@ router.post('/', async (req, res) => {
 // GET /api/predictions/:matchId - Get match predictions
 router.get('/:matchId', async (req, res) => {
   try {
+    if (!contract) {
+      return res.status(503).json({ error: 'Predictions service not available' });
+    }
+
     const { matchId } = req.params;
     
     // Get match stats from contract
@@ -77,6 +95,10 @@ router.get('/:matchId', async (req, res) => {
 // POST /api/predictions/:matchId/claim - Claim prediction rewards
 router.post('/:matchId/claim', async (req, res) => {
   try {
+    if (!contract) {
+      return res.status(503).json({ error: 'Predictions service not available' });
+    }
+
     const { matchId } = req.params;
     const { walletAddress } = req.body;
 

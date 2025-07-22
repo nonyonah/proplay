@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Gamepad2, ChevronLeft, ChevronRight } from "lucide-react"
+import { getFarcasterFid } from "@/lib/farcaster"
 
 interface OnboardingFlowProps {
   onComplete: (preferences: any) => void
@@ -62,15 +63,53 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
     setSelectedGames((prev) => (prev.includes(gameId) ? prev.filter((id) => id !== gameId) : [...prev, gameId]))
   }
 
-  const handleNext = () => {
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleNext = async () => {
     if (currentStep < 3) {
       setCurrentStep(currentStep + 1)
     } else {
-      onComplete({
-        games: selectedGames,
-        favoriteTeam,
-        favoritePlayer,
-      })
+      setSubmitting(true)
+      setError(null)
+      
+      try {
+        // Get Farcaster FID from utility function
+        const fid = await getFarcasterFid()
+        
+        if (!fid) {
+          throw new Error('User not authenticated')
+        }
+        
+        // Save preferences to API
+        const response = await fetch('/api/preferences', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            fid,
+            genres: selectedGames,
+            favorite_team: favoriteTeam,
+            favorite_player: favoritePlayer,
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to save preferences')
+        }
+
+        // Complete onboarding
+        onComplete({
+          games: selectedGames,
+          favoriteTeam,
+          favoritePlayer,
+        })
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred')
+      } finally {
+        setSubmitting(false)
+      }
     }
   }
 
@@ -219,12 +258,20 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
             </div>
           )}
 
+          {/* Error Message */}
+          {error && (
+            <div className="w-full bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+              <p className="text-red-600 text-sm">{error}</p>
+            </div>
+          )}
+          
           {/* Navigation Buttons */}
           <div className="flex gap-3 pt-4">
             {currentStep > 1 && (
               <Button
                 variant="outline"
                 onClick={handleBack}
+                disabled={submitting}
                 className="flex-1 border-gray-200 bg-white hover:bg-gray-50"
               >
                 <ChevronLeft className="w-4 h-4 mr-1" />
@@ -234,11 +281,20 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
 
             <Button
               onClick={handleNext}
-              disabled={!canProceed()}
+              disabled={!canProceed() || submitting}
               className={`${currentStep === 1 ? "w-full" : "flex-1"} h-12 font-semibold bg-purple-600 hover:bg-purple-700 text-white`}
             >
-              {currentStep === 3 ? "Finish" : "Next"}
-              {currentStep < 3 && <ChevronRight className="w-4 h-4 ml-1" />}
+              {submitting ? (
+                <>
+                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                  {currentStep === 3 ? "Saving..." : "Next"}
+                </>
+              ) : (
+                <>
+                  {currentStep === 3 ? "Finish" : "Next"}
+                  {currentStep < 3 && <ChevronRight className="w-4 h-4 ml-1" />}
+                </>
+              )}
             </Button>
           </div>
         </CardContent>

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { sdk } from "@farcaster/miniapp-sdk"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
@@ -34,10 +35,18 @@ export function ShareCastModal({ match, onClose }: ShareCastModalProps) {
 
   const [castText, setCastText] = useState(generateCastText())
 
-  const handlePostCast = () => {
-    // Here you would integrate with Farcaster SDK to post the cast
-    console.log("Posting cast:", castText)
-    onClose()
+  const handlePostCast = async () => {
+    try {
+      // Use Farcaster SDK to post the cast
+      await sdk.actions.composeCast({
+        text: castText
+      })
+      console.log("Cast posted successfully")
+      onClose()
+    } catch (error) {
+      console.error("Error posting cast:", error)
+      // Could add error handling UI here
+    }
   }
 
   return (

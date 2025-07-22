@@ -3,6 +3,9 @@ const router = express.Router();
 const { ethers } = require('ethers');
 const { provider } = require('../config');
 
+// Demo wallet address for development
+const DEMO_WALLET_ADDRESS = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+
 const USDC_ADDRESS = process.env.BASE_USDC_ADDRESS;
 const USDC_ABI = [
   'function balanceOf(address owner) view returns (uint256)',
@@ -35,6 +38,18 @@ router.get('/:address', async (req, res) => {
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ error: 'Failed to fetch wallet balances' });
+  }
+});
+
+// GET /api/wallet - Get demo wallet address
+router.get('/', (req, res) => {
+  try {
+    res.json({
+      address: DEMO_WALLET_ADDRESS
+    });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Failed to fetch wallet address' });
   }
 });
 

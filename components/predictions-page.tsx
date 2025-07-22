@@ -292,6 +292,7 @@ export const PredictionsPage = React.forwardRef<HTMLDivElement, PredictionsPageP
             </Card>
           ))}
         </div>
+        )}
       </div>
 
       {/* Prediction Modal */}
@@ -444,5 +445,4 @@ export const PredictionsPage = React.forwardRef<HTMLDivElement, PredictionsPageP
         </div>
       </nav>
     </div>
-  );
-});
+})

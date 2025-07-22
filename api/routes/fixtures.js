@@ -7,20 +7,24 @@ const { fetchFromPandaScore, formatMatchData } = require('../utils');
 router.get('/', async (req, res) => {
   try {
     const { fid } = req.query;
-    if (!fid) {
-      return res.status(400).json({ error: 'User FID is required' });
-    }
-
-    // Get user preferences
-    const { data: userPrefs, error: prefsError } = await supabase
-      .from('users')
-      .select('genres, favorite_team')
-      .eq('fid', fid)
-      .single();
-
-    if (prefsError) {
-      console.error('Supabase Error:', prefsError);
-      return res.status(500).json({ error: 'Failed to fetch user preferences' });
+    
+    // Get user preferences (use defaults if Supabase is not available)
+    let userPrefs = { genres: ['lol', 'csgo', 'valorant'], favorite_team: null };
+    
+    if (supabase && fid) {
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('genres, favorite_team')
+          .eq('fid', fid)
+          .single();
+        
+        if (!error && data) {
+          userPrefs = data;
+        }
+      } catch (dbError) {
+        console.warn('Database not available, using default preferences:', dbError.message);
+      }
     }
 
     // Fetch upcoming matches from PandaScore for each genre
