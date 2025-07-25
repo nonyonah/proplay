@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, Trophy, Star, Home, Wallet, Clock, Users } from "lucide-react"
-import { API_ENDPOINTS, fetchApi } from "@/lib/api"
+import { API_ENDPOINTS, fetchApi, getApiUrl } from "@/lib/api"
 import React from "react"
 
 interface PredictionsPageProps {
@@ -108,7 +108,7 @@ export function PredictionsPage({ onNavigateToHome, onOpenWallet, onShareMatch }
       }
       
       // Make prediction via API
-      const response = await fetch(API_ENDPOINTS.predictions, {
+      const response = await fetch(getApiUrl(API_ENDPOINTS.predictions), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -124,7 +124,7 @@ export function PredictionsPage({ onNavigateToHome, onOpenWallet, onShareMatch }
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.message || 'Failed to make prediction')
+        throw new Error(errorData.message || `Failed to make prediction: ${response.statusText}`)
       }
 
       // Close modal and reset form

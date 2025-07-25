@@ -5,7 +5,7 @@ import { isWalletCapabilityAvailable, getEthereumProvider } from "@/lib/farcaste
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { X, Wallet, Copy, AlertCircle } from "lucide-react"
-import { API_ENDPOINTS, fetchApi } from "@/lib/api"
+import { API_ENDPOINTS, fetchApi, getApiUrl } from "@/lib/api"
 
 interface WalletModalProps {
   onClose: () => void

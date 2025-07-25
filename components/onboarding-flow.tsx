@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input"
 import { Gamepad2, ChevronLeft, ChevronRight } from "lucide-react"
 import { getFarcasterFid } from "@/lib/farcaster"
+import { API_ENDPOINTS, getApiUrl } from "@/lib/api"
 
 interface OnboardingFlowProps {
   onComplete: (preferences: any) => void
@@ -82,7 +83,7 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
         }
         
         // Save preferences to API
-        const response = await fetch('/api/preferences', {
+        const response = await fetch(getApiUrl(API_ENDPOINTS.preferences), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -96,7 +97,7 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
         })
 
         if (!response.ok) {
-          throw new Error('Failed to save preferences')
+          throw new Error(`Failed to save preferences: ${response.statusText}`)
         }
 
         // Complete onboarding

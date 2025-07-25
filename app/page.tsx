@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { sdk } from "@farcaster/miniapp-sdk"
 import { getFarcasterFid } from "@/lib/farcaster"
 import { SplashScreen } from "@/components/splash-screen"
+import { LoginPage } from "@/components/login-page"
 import { OnboardingFlow } from "@/components/onboarding-flow"
 import { HomePage } from "@/components/home-page"
 import { FollowedMatchesPage } from "@/components/followed-matches-page"
@@ -12,10 +13,10 @@ import { LiveMatchesPage } from "@/components/live-matches-page"
 import { ShareCastModal } from "@/components/share-cast-modal"
 import { WalletModal } from "@/components/wallet-modal"
 import { ThemeProvider } from "@/components/theme-provider"
-import { API_ENDPOINTS } from "@/lib/api"
+import { API_ENDPOINTS, getApiUrl } from "@/lib/api"
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<"splash" | "onboarding" | "home" | "followed" | "predictions" | "live">(
+  const [currentPage, setCurrentPage] = useState<"splash" | "login" | "onboarding" | "home" | "followed" | "predictions" | "live">(
     "splash"
   )
   const [onboardingComplete, setOnboardingComplete] = useState(false)
@@ -29,6 +30,7 @@ export default function App() {
     favoritePlayer: "",
   })
   const [fid, setFid] = useState<string | null>(null)
+  const [authError, setAuthError] = useState<string | null>(null)
 
   // Initialize Farcaster MiniApp SDK and transition from splash to onboarding
   useEffect(() => {
@@ -41,14 +43,19 @@ export default function App() {
         const farcasterFid = await getFarcasterFid()
         if (farcasterFid) {
           setFid(farcasterFid)
+          setAuthError(null)
+          // User is authenticated, proceed to onboarding
+          setCurrentPage("onboarding")
+        } else {
+          // User is not authenticated, redirect to login
+          setAuthError("User not authenticated")
+          setCurrentPage("login")
         }
-        
-        // Transition to onboarding after initialization
-        setCurrentPage("onboarding")
       } catch (error) {
         console.error("Error initializing Farcaster SDK:", error)
-        // Fallback to timer if SDK initialization fails
-        setTimeout(() => setCurrentPage("onboarding"), 3000)
+        setAuthError("Failed to initialize Farcaster SDK")
+        // Redirect to login on SDK initialization failure
+        setCurrentPage("login")
       }
     }
     
@@ -61,9 +68,9 @@ export default function App() {
     if (!fid) return;
     
     // Fetch user preferences
-    fetch(`${API_ENDPOINTS.preferences}?fid=${fid}`)
+    fetch(getApiUrl(`${API_ENDPOINTS.preferences}?fid=${fid}`))
       .then(response => {
-        if (!response.ok) throw new Error('Failed to fetch preferences')
+        if (!response.ok) throw new Error(`Failed to fetch preferences: ${response.statusText}`)
         return response.json()
       })
       .then(data => {
@@ -80,12 +87,15 @@ export default function App() {
           }
         }
       })
-      .catch(err => console.error('Error fetching preferences:', err))
+      .catch(err => {
+        console.error('Error fetching preferences:', err)
+        // Don't block the app if preferences fail to load
+      })
     
     // Fetch followed matches
-    fetch(`${API_ENDPOINTS.follow}?fid=${fid}`)
+    fetch(getApiUrl(`${API_ENDPOINTS.follow}/${fid}`))
       .then(response => {
-        if (!response.ok) throw new Error('Failed to fetch followed matches')
+        if (!response.ok) throw new Error(`Failed to fetch followed matches: ${response.statusText}`)
         return response.json()
       })
       .then(data => {
@@ -95,7 +105,10 @@ export default function App() {
           setFollowedMatches(matchIds)
         }
       })
-      .catch(err => console.error('Error fetching followed matches:', err))  
+      .catch(err => {
+        console.error('Error fetching followed matches:', err)
+        // Don't block the app if followed matches fail to load
+      })  
   }, [fid]) // Re-run when FID changes
 
   const handleOnboardingComplete = (preferences: any) => {
@@ -119,12 +132,13 @@ export default function App() {
     // Check if user is authenticated
     if (!fid) {
       console.error('User not authenticated')
+      setCurrentPage("login")
       return
     }
     
     try {
       // Call the API to follow the match
-      const response = await fetch(API_ENDPOINTS.follow, {
+      const response = await fetch(getApiUrl(API_ENDPOINTS.follow), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -136,7 +150,7 @@ export default function App() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to follow match')
+        throw new Error(`Failed to follow match: ${response.statusText}`)
       }
 
       // Update local state
@@ -152,10 +166,33 @@ export default function App() {
     setShareModalOpen(true)
   }
 
+  const handleLogin = async () => {
+    try {
+      // Retry Farcaster authentication
+      await sdk.actions.ready()
+      const farcasterFid = await getFarcasterFid()
+      
+      if (farcasterFid) {
+        setFid(farcasterFid)
+        setAuthError(null)
+        setCurrentPage("onboarding")
+      } else {
+        setAuthError("Authentication failed. Please try again.")
+      }
+    } catch (error) {
+      console.error("Login error:", error)
+      setAuthError("Failed to authenticate with Farcaster")
+    }
+  }
+
   return (
     <ThemeProvider>
       <div className="min-h-screen bg-background text-foreground">
         {currentPage === "splash" && <SplashScreen />}
+
+        {currentPage === "login" && (
+          <LoginPage onLogin={handleLogin} />
+        )}
 
         {currentPage === "onboarding" && (
           <OnboardingFlow onComplete={handleOnboardingComplete} onSkip={handleSkipOnboarding} />

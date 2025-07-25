@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Trophy, X } from "lucide-react"
-import { API_ENDPOINTS, fetchApi } from "@/lib/api"
+import { API_ENDPOINTS, fetchApi, getApiUrl } from "@/lib/api"
 import React from "react"
 
 interface FollowedMatchesPageProps {
@@ -78,7 +78,7 @@ export const FollowedMatchesPage = React.forwardRef<HTMLDivElement, FollowedMatc
       }
       
       // Call the API to unfollow the match
-      const response = await fetch(`${API_ENDPOINTS.follow}/${matchId}`, {
+      const response = await fetch(getApiUrl(`${API_ENDPOINTS.follow}/${matchId}`), {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -89,7 +89,7 @@ export const FollowedMatchesPage = React.forwardRef<HTMLDivElement, FollowedMatc
       })
 
       if (!response.ok) {
-        throw new Error('Failed to unfollow match')
+        throw new Error(`Failed to unfollow match: ${response.statusText}`)
       }
 
       // Call the parent component's unfollow handler
