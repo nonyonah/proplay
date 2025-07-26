@@ -1,9 +1,40 @@
 "use client"
 
+import { useEffect, useState } from "react"
+import { sdk } from "@farcaster/miniapp-sdk"
 import { Card, CardContent } from "@/components/ui/card"
 import { Gamepad2 } from "lucide-react"
 
-export function SplashScreen() {
+interface SplashScreenProps {
+  onReady: () => void
+}
+
+export function SplashScreen({ onReady }: SplashScreenProps) {
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        // Tell the Farcaster client we're ready to display content
+        await sdk.actions.ready()
+        
+        // Add a small delay for better UX
+        setTimeout(() => {
+          setIsLoading(false)
+          onReady()
+        }, 1500)
+      } catch (error) {
+        console.error("Error initializing Farcaster SDK:", error)
+        // Still proceed even if there's an error
+        setTimeout(() => {
+          setIsLoading(false)
+          onReady()
+        }, 1500)
+      }
+    }
+    
+    initializeApp()
+  }, [onReady])
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-purple-600 to-indigo-700">
       <Card className="w-full max-w-md mx-auto bg-white/95 backdrop-blur-sm shadow-xl border-0">
@@ -53,6 +84,14 @@ export function SplashScreen() {
             <p className="text-sm text-gray-500">
               Powered by Base & Farcaster
             </p>
+            
+            {/* Loading indicator */}
+            {isLoading && (
+              <div className="flex items-center justify-center mt-4">
+                <div className="animate-spin w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full"></div>
+                <span className="ml-2 text-sm text-purple-600">Connecting...</span>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

@@ -1,91 +1,74 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { isWalletCapabilityAvailable, getEthereumProvider } from "@/lib/farcaster"
+import { useAccount, useConnect, useDisconnect, useBalance } from 'wagmi'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { X, Wallet, Copy, AlertCircle } from "lucide-react"
-import { API_ENDPOINTS, fetchApi, getApiUrl } from "@/lib/api"
+import { API_ENDPOINTS, fetchApi } from "@/lib/api"
 
 interface WalletModalProps {
   onClose: () => void
 }
 
 export function WalletModal({ onClose }: WalletModalProps) {
-  const [walletData, setWalletData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const { address, isConnected } = useAccount()
+  const { connect, connectors } = useConnect()
+  const { disconnect } = useDisconnect()
+  const { data: ethBalance } = useBalance({ address })
+  const [usdcBalance, setUsdcBalance] = useState<string>('0')
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    setLoading(true)
-    setError(null)
-    
-    const getWalletData = async () => {
-      try {
-        // Check if wallet capability is available
-        const walletAvailable = await isWalletCapabilityAvailable()
-        if (!walletAvailable) {
-          throw new Error('Wallet capability not available')
-        }
-        
-        // Get Ethereum provider from Farcaster
-        const provider = await getEthereumProvider()
-        if (!provider) {
-          throw new Error('Failed to get Ethereum provider')
-        }
-        
-        // Get user's wallet address
-        const accounts = await provider.request({ method: 'eth_requestAccounts' })
-        const address = accounts[0]
-        
-        if (!address) {
-          throw new Error('No wallet address found')
-        }
-        
-        // Fetch wallet balances using the address
-        const balanceData = await fetchApi<{eth: string, usdc: string}>(`${API_ENDPOINTS.wallet}/${address}`)
-        
-        // Format the data to match the expected structure
-        setWalletData({
-          address: address,
-          assets: [
-            { symbol: 'ETH', amount: balanceData.eth, value: `$${(parseFloat(balanceData.eth) * 2500).toFixed(2)}` },
-            { symbol: 'USDC', amount: balanceData.usdc, value: `$${parseFloat(balanceData.usdc).toFixed(2)}` },
-          ]
-        })
-      } catch (err) {
-        console.error('Wallet error:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load wallet data')
-        
-        // Fallback to API if Farcaster wallet integration fails
+    if (address && isConnected) {
+      // Fetch USDC balance from API
+      const fetchUsdcBalance = async () => {
         try {
-          const addressData = await fetchApi<{address: string}>(API_ENDPOINTS.wallet)
-          const balanceData = await fetchApi<{eth: string, usdc: string}>(`${API_ENDPOINTS.wallet}/${addressData.address}`)
-          
-          setWalletData({
-            address: addressData.address,
-            assets: [
-              { symbol: 'ETH', amount: balanceData.eth, value: `$${(parseFloat(balanceData.eth) * 2500).toFixed(2)}` },
-              { symbol: 'USDC', amount: balanceData.usdc, value: `$${parseFloat(balanceData.usdc).toFixed(2)}` },
-            ]
-          })
-          setError(null) // Clear error if fallback succeeds
-        } catch (fallbackErr) {
-          console.error('Fallback wallet error:', fallbackErr)
-          // Keep the original error if fallback also fails
+          setLoading(true)
+          const balanceData = await fetchApi<{usdc: string}>(`${API_ENDPOINTS.wallet}/${address}`)
+          setUsdcBalance(balanceData.usdc)
+        } catch (err) {
+          console.error('Failed to fetch USDC balance:', err)
+          setError('Failed to load USDC balance')
+        } finally {
+          setLoading(false)
         }
-      } finally {
-        setLoading(false)
       }
+      
+      fetchUsdcBalance()
     }
+  }, [address, isConnected])
+
+  const handleConnect = () => {
+    const farcasterConnector = connectors.find(connector => 
+      connector.name.toLowerCase().includes('farcaster') || 
+      connector.id.includes('farcaster')
+    )
     
-    getWalletData()
-  }, [])
+    if (farcasterConnector) {
+      connect({ connector: farcasterConnector })
+    } else {
+      // Fallback to first available connector
+      connect({ connector: connectors[0] })
+    }
+  }
 
   const handleCopyAddress = () => {
-    if (walletData?.address) {
-      navigator.clipboard.writeText(walletData.address)
+    if (address) {
+      navigator.clipboard.writeText(address)
     }
+  }
+
+  const formatBalance = (balance: string | undefined, decimals: number = 4) => {
+    if (!balance) return '0'
+    const num = parseFloat(balance)
+    return num.toFixed(decimals)
+  }
+
+  const formatUsdValue = (amount: string, price: number) => {
+    const value = parseFloat(amount) * price
+    return `$${value.toFixed(2)}`
   }
 
   return (
@@ -104,44 +87,38 @@ export function WalletModal({ onClose }: WalletModalProps) {
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {loading && (
+          {!isConnected ? (
             <div className="text-center py-4">
-              <div className="animate-spin w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading wallet data...</p>
-            </div>
-          )}
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <AlertCircle className="w-5 h-5 text-red-500" />
-                <p className="text-red-600 font-medium">Error</p>
-              </div>
-              <p className="text-red-600 text-sm">{error}</p>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="mt-2" 
-                onClick={() => {
-                  setLoading(true)
-                  setError(null)
-                  fetchApi<{address: string, assets: any[]}>(API_ENDPOINTS.wallet)
-                    .then((data) => setWalletData(data))
-                    .catch((err) => setError(err.message || 'Failed to load wallet data'))
-                    .finally(() => setLoading(false))
-                }}
-              >
-                Try Again
+              <p className="text-gray-600 mb-4">Connect your wallet to view balances</p>
+              <Button onClick={handleConnect} className="w-full">
+                Connect Wallet
               </Button>
             </div>
-          )}
-
-          {!loading && !error && walletData && (
+          ) : (
             <>
+              {loading && (
+                <div className="text-center py-2">
+                  <div className="animate-spin w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full mx-auto mb-2"></div>
+                  <p className="text-gray-600 text-sm">Loading balances...</p>
+                </div>
+              )}
+
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <AlertCircle className="w-4 h-4 text-red-500" />
+                    <p className="text-red-600 font-medium text-sm">Error</p>
+                  </div>
+                  <p className="text-red-600 text-xs">{error}</p>
+                </div>
+              )}
+
               {/* Wallet Address */}
               <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-mono text-gray-700">{walletData.address}</span>
+                  <span className="text-sm font-mono text-gray-700">
+                    {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : ''}
+                  </span>
                   <Button variant="ghost" size="sm" onClick={handleCopyAddress} className="hover:bg-gray-200">
                     <Copy className="w-4 h-4" />
                   </Button>
@@ -151,38 +128,66 @@ export function WalletModal({ onClose }: WalletModalProps) {
               {/* Assets */}
               <div className="space-y-3">
                 <h4 className="font-medium text-sm text-gray-600">Assets</h4>
-                {walletData.assets.map((asset: any) => (
-              <div
-                key={asset.symbol}
-                className="flex items-center justify-between p-3 rounded-lg border border-gray-200 bg-white"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                    <span className="text-xs font-bold text-white">{asset.symbol[0]}</span>
+                
+                {/* ETH Balance */}
+                <div className="flex items-center justify-between p-3 rounded-lg border border-gray-200 bg-white">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                      <span className="text-xs font-bold text-white">E</span>
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-900">ETH</div>
+                      <div className="text-sm text-gray-600">
+                        {formatBalance(ethBalance?.formatted)}
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="font-medium text-gray-900">{asset.symbol}</div>
-                    <div className="text-sm text-gray-600">{asset.amount}</div>
+                  <div className="text-right">
+                    <div className="font-medium text-gray-900">
+                      {formatUsdValue(ethBalance?.formatted || '0', 2500)}
+                    </div>
                   </div>
-                </div>
-                <div className="text-right">
-                  <div className="font-medium text-gray-900">{asset.value}</div>
-                </div>
-              </div>
-            ))}
                 </div>
 
-                {/* Actions */}
-                <div className="flex gap-2 pt-2">
-                  <Button variant="outline" className="flex-1 border-gray-200 bg-white hover:bg-gray-50">
-                    Send
-                  </Button>
-                  <Button variant="outline" className="flex-1 border-gray-200 bg-white hover:bg-gray-50">
-                    Receive
-                  </Button>
+                {/* USDC Balance */}
+                <div className="flex items-center justify-between p-3 rounded-lg border border-gray-200 bg-white">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center">
+                      <span className="text-xs font-bold text-white">U</span>
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-900">USDC</div>
+                      <div className="text-sm text-gray-600">
+                        {formatBalance(usdcBalance)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-medium text-gray-900">
+                      {formatUsdValue(usdcBalance, 1)}
+                    </div>
+                  </div>
                 </div>
-              </>
-            )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" className="flex-1 border-gray-200 bg-white hover:bg-gray-50">
+                  Send
+                </Button>
+                <Button variant="outline" className="flex-1 border-gray-200 bg-white hover:bg-gray-50">
+                  Receive
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => disconnect()}
+                  className="flex-1 border-red-200 text-red-600 hover:bg-red-50"
+                >
+                  Disconnect
+                </Button>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

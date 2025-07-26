@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { sdk } from "@farcaster/miniapp-sdk"
 import { getFarcasterFid } from "@/lib/farcaster"
 import { SplashScreen } from "@/components/splash-screen"
-import { LoginPage } from "@/components/login-page"
 import { OnboardingFlow } from "@/components/onboarding-flow"
 import { HomePage } from "@/components/home-page"
 import { FollowedMatchesPage } from "@/components/followed-matches-page"
@@ -16,7 +15,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { API_ENDPOINTS, getApiUrl } from "@/lib/api"
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<"splash" | "login" | "onboarding" | "home" | "followed" | "predictions" | "live">(
+  const [currentPage, setCurrentPage] = useState<"splash" | "onboarding" | "home" | "followed" | "predictions" | "live">(
     "splash"
   )
   const [onboardingComplete, setOnboardingComplete] = useState(false)
@@ -30,37 +29,23 @@ export default function App() {
     favoritePlayer: "",
   })
   const [fid, setFid] = useState<string | null>(null)
-  const [authError, setAuthError] = useState<string | null>(null)
 
-  // Initialize Farcaster MiniApp SDK and transition from splash to onboarding
-  useEffect(() => {
-    const initializeFarcaster = async () => {
-      try {
-        // Tell the Farcaster client we're ready to display content
-        await sdk.actions.ready()
-        
-        // Get user authentication information using utility function
-        const farcasterFid = await getFarcasterFid()
-        if (farcasterFid) {
-          setFid(farcasterFid)
-          setAuthError(null)
-          // User is authenticated, proceed to onboarding
-          setCurrentPage("onboarding")
-        } else {
-          // User is not authenticated, redirect to login
-          setAuthError("User not authenticated")
-          setCurrentPage("login")
-        }
-      } catch (error) {
-        console.error("Error initializing Farcaster SDK:", error)
-        setAuthError("Failed to initialize Farcaster SDK")
-        // Redirect to login on SDK initialization failure
-        setCurrentPage("login")
+  // Handle splash screen completion and get user FID
+  const handleSplashReady = async () => {
+    try {
+      // Get user authentication information using utility function
+      const farcasterFid = await getFarcasterFid()
+      if (farcasterFid) {
+        setFid(farcasterFid)
       }
+      // Always proceed to onboarding since Farcaster automatically connects
+      setCurrentPage("onboarding")
+    } catch (error) {
+      console.error("Error getting Farcaster FID:", error)
+      // Still proceed to onboarding even if FID retrieval fails
+      setCurrentPage("onboarding")
     }
-    
-    initializeFarcaster()
-  }, [])
+  }
 
   // Fetch user preferences and followed matches when FID is available
   useEffect(() => {
@@ -132,7 +117,6 @@ export default function App() {
     // Check if user is authenticated
     if (!fid) {
       console.error('User not authenticated')
-      setCurrentPage("login")
       return
     }
     
@@ -166,33 +150,10 @@ export default function App() {
     setShareModalOpen(true)
   }
 
-  const handleLogin = async () => {
-    try {
-      // Retry Farcaster authentication
-      await sdk.actions.ready()
-      const farcasterFid = await getFarcasterFid()
-      
-      if (farcasterFid) {
-        setFid(farcasterFid)
-        setAuthError(null)
-        setCurrentPage("onboarding")
-      } else {
-        setAuthError("Authentication failed. Please try again.")
-      }
-    } catch (error) {
-      console.error("Login error:", error)
-      setAuthError("Failed to authenticate with Farcaster")
-    }
-  }
-
   return (
     <ThemeProvider>
       <div className="min-h-screen bg-background text-foreground">
-        {currentPage === "splash" && <SplashScreen />}
-
-        {currentPage === "login" && (
-          <LoginPage onLogin={handleLogin} />
-        )}
+        {currentPage === "splash" && <SplashScreen onReady={handleSplashReady} />}
 
         {currentPage === "onboarding" && (
           <OnboardingFlow onComplete={handleOnboardingComplete} onSkip={handleSkipOnboarding} />
